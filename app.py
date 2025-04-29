@@ -592,6 +592,137 @@ def signup_form():
 #         st.info("Placeholder: No stock tracking available.")
 #     ### -------- Grid Layout Ends Here --------
 
+# from itertools import combinations
+# from collections import Counter
+
+# def dashboard_page():
+#     st.markdown("<h1 style='color:cyan;'>🛒 Retail KPI Dashboard</h1>", unsafe_allow_html=True)
+#     st.write("---")
+
+#     # 1️⃣ Fetch data
+#     try:
+#         conn = get_connection()
+#         df   = pd.read_sql("SELECT 500 FROM dbo.transactions", conn)
+#         conn.close()
+#     except Exception as e:
+#         st.error(f"Connection error: {e}")
+#         return
+
+#     if df.empty:
+#         st.warning("No transaction data found.")
+#         return
+
+#     df["Date"] = pd.to_datetime(df["Date"])
+
+#     # 2️⃣ Compute Core Metrics
+#     total_customers    = df["Hshd_num"].nunique()
+#     total_transactions = df["Basket_num"].nunique()
+#     total_sales        = df["Spend"].sum()
+#     avg_clv            = (
+#         df.groupby("Hshd_num")["Spend"].sum().mean()
+#     )  # average total spend per household
+#     # churn = households with no purchase in last 8 weeks
+#     last_purchase = df.groupby("Hshd_num")["Date"].max()
+#     cutoff        = df["Date"].max() - pd.Timedelta(weeks=8)
+#     churn_rate    = (last_purchase < cutoff).mean()
+#     # demand forecast = naïve next‐week spend = this week’s total
+#     weekly = df.set_index("Date").resample("W")["Spend"].sum()
+#     next_week_forecast = weekly.iloc[-1]
+#     # avg distinct products per basket
+#     avg_basket_size = df.groupby("Basket_num")["Product_num"] \
+#                         .nunique().mean()
+
+#     # 3️⃣ Top KPI Row
+#     k1, k2, k3, k4 = st.columns(4, gap="small")
+#     k1.metric("🏆 Avg CLV ($)", f"{avg_clv:,.2f}")
+#     k2.metric("🚩 Churn Rate", f"{churn_rate:.1%}")
+#     k3.metric("🔮 Next‐Week Spend", f"${next_week_forecast:,.0f}")
+#     k4.metric("🧺 Avg Products/Basket", f"{avg_basket_size:.1f}")
+
+#     st.divider()
+
+#     # 4️⃣ Three Charts Row
+#     c1, c2, c3 = st.columns(3, gap="small")
+
+#     with c1:
+#         st.subheader("Visitors & Transactions")
+#         monthly = df.copy()
+#         monthly["Month"] = monthly["Date"].dt.to_period("M").dt.to_timestamp()
+#         ms = (
+#             monthly.groupby("Month")
+#                    .agg({"Hshd_num":"nunique","Basket_num":"nunique"})
+#                    .reset_index()
+#         )
+#         fig1 = px.bar(
+#             ms, x="Month", y=["Hshd_num","Basket_num"],
+#             barmode="group", labels={"value":"Count","variable":""}
+#         )
+#         fig1.update_layout(margin=dict(l=20,r=10,t=25,b=10), height=260, font_size=11)
+#         st.plotly_chart(fig1, use_container_width=True)
+
+#     with c2:
+#         st.subheader("Sales by Department")
+#         products_df = pd.read_sql("SELECT * FROM dbo.products", get_connection())
+#         sd = (
+#             df.merge(products_df, on="Product_num")
+#               .groupby("Department")["Spend"]
+#               .sum()
+#               .nlargest(5)
+#               .reset_index()
+#         )
+#         fig2 = px.bar(sd, x="Department", y="Spend", labels={"Spend":"$"})
+#         fig2.update_layout(margin=dict(l=20,r=10,t=25,b=10), height=260, font_size=11)
+#         st.plotly_chart(fig2, use_container_width=True)
+
+#     with c3:
+#         st.subheader("Avg Spend & Units/Txn")
+#         pb = (
+#             df.groupby(["Basket_num","Date"])
+#               .agg({"Spend":"sum","Units":"sum"})
+#               .reset_index()
+#         )
+#         pb["Month"] = pb["Date"].dt.to_period("M").dt.to_timestamp()
+#         tv = pb.groupby("Month")[["Spend","Units"]].mean().reset_index()
+#         fig3 = px.line(tv, x="Month", y=["Spend","Units"], labels={"value":"Avg/Txn"})
+#         fig3.update_layout(margin=dict(l=20,r=10,t=25,b=10), height=260, font_size=11)
+#         st.plotly_chart(fig3, use_container_width=True)
+
+#     st.divider()
+
+#     # 5️⃣ Bottom Row: Top Products, Region, Basket Analysis
+#     b1, b2, b3 = st.columns(3, gap="small")
+
+#     with b1:
+#         st.subheader("Top 7 Products by Units")
+#         tp = df.groupby("Product_num")["Units"].sum().nlargest(7).reset_index()
+#         fig4 = px.bar(tp, x="Product_num", y="Units", text="Units")
+#         fig4.update_layout(margin=dict(l=20,r=10,t=25,b=10), height=260, font_size=11)
+#         fig4.update_traces(textposition="outside")
+#         st.plotly_chart(fig4, use_container_width=True)
+
+#     with b2:
+#         st.subheader("Sales by Region")
+#         rs = df.groupby("Store_region")["Spend"].sum().reset_index()
+#         fig5 = px.pie(rs, names="Store_region", values="Spend")
+#         fig5.update_layout(margin=dict(l=20,r=10,t=25,b=10), height=260, font_size=11)
+#         st.plotly_chart(fig5, use_container_width=True)
+
+#     with b3:
+#         st.subheader("Basket Analysis – Top Pairs")
+#         # find top‐5 co‐purchased product pairs
+#         pair_counts = Counter()
+#         for _, sub in df.groupby("Basket_num"):
+#             items = sub["Product_num"].unique()
+#             for a, b in combinations(sorted(items), 2):
+#                 pair_counts[(a, b)] += 1
+#         top_pairs = pair_counts.most_common(5)
+#         tp_df = pd.DataFrame(top_pairs, columns=["Pair","Count"])
+#         tp_df["Product A"] = tp_df["Pair"].apply(lambda x: x[0])
+#         tp_df["Product B"] = tp_df["Pair"].apply(lambda x: x[1])
+#         st.table(tp_df[["Product A","Product B","Count"]])
+
+#     st.divider()
+
 from itertools import combinations
 from collections import Counter
 
@@ -602,7 +733,7 @@ def dashboard_page():
     # 1️⃣ Fetch data
     try:
         conn = get_connection()
-        df   = pd.read_sql("SELECT 500 FROM dbo.transactions", conn)
+        df   = pd.read_sql("SELECT TOP 500 * FROM dbo.transactions", conn)
         conn.close()
     except Exception as e:
         st.error(f"Connection error: {e}")
@@ -612,25 +743,23 @@ def dashboard_page():
         st.warning("No transaction data found.")
         return
 
-    df["Date"] = pd.to_datetime(df["Date"])
+    # 🛠️ Fix: Dynamic date column handling
+    date_col = "Date" if "Date" in df.columns else "PURCHASE_"
+    df["Date"] = pd.to_datetime(df[date_col], errors="coerce")
 
     # 2️⃣ Compute Core Metrics
     total_customers    = df["Hshd_num"].nunique()
     total_transactions = df["Basket_num"].nunique()
     total_sales        = df["Spend"].sum()
-    avg_clv            = (
-        df.groupby("Hshd_num")["Spend"].sum().mean()
-    )  # average total spend per household
-    # churn = households with no purchase in last 8 weeks
+    avg_clv            = df.groupby("Hshd_num")["Spend"].sum().mean()
+
     last_purchase = df.groupby("Hshd_num")["Date"].max()
     cutoff        = df["Date"].max() - pd.Timedelta(weeks=8)
     churn_rate    = (last_purchase < cutoff).mean()
-    # demand forecast = naïve next‐week spend = this week’s total
+
     weekly = df.set_index("Date").resample("W")["Spend"].sum()
     next_week_forecast = weekly.iloc[-1]
-    # avg distinct products per basket
-    avg_basket_size = df.groupby("Basket_num")["Product_num"] \
-                        .nunique().mean()
+    avg_basket_size = df.groupby("Basket_num")["Product_num"].nunique().mean()
 
     # 3️⃣ Top KPI Row
     k1, k2, k3, k4 = st.columns(4, gap="small")
@@ -648,42 +777,25 @@ def dashboard_page():
         st.subheader("Visitors & Transactions")
         monthly = df.copy()
         monthly["Month"] = monthly["Date"].dt.to_period("M").dt.to_timestamp()
-        ms = (
-            monthly.groupby("Month")
-                   .agg({"Hshd_num":"nunique","Basket_num":"nunique"})
-                   .reset_index()
-        )
-        fig1 = px.bar(
-            ms, x="Month", y=["Hshd_num","Basket_num"],
-            barmode="group", labels={"value":"Count","variable":""}
-        )
+        ms = monthly.groupby("Month").agg({"Hshd_num":"nunique", "Basket_num":"nunique"}).reset_index()
+        fig1 = px.bar(ms, x="Month", y=["Hshd_num", "Basket_num"], barmode="group", labels={"value":"Count", "variable":""})
         fig1.update_layout(margin=dict(l=20,r=10,t=25,b=10), height=260, font_size=11)
         st.plotly_chart(fig1, use_container_width=True)
 
     with c2:
         st.subheader("Sales by Department")
         products_df = pd.read_sql("SELECT * FROM dbo.products", get_connection())
-        sd = (
-            df.merge(products_df, on="Product_num")
-              .groupby("Department")["Spend"]
-              .sum()
-              .nlargest(5)
-              .reset_index()
-        )
-        fig2 = px.bar(sd, x="Department", y="Spend", labels={"Spend":"$"})
+        sd = df.merge(products_df, on="Product_num").groupby("Department")["Spend"].sum().nlargest(5).reset_index()
+        fig2 = px.bar(sd, x="Department", y="Spend", labels={"Spend": "$"})
         fig2.update_layout(margin=dict(l=20,r=10,t=25,b=10), height=260, font_size=11)
         st.plotly_chart(fig2, use_container_width=True)
 
     with c3:
         st.subheader("Avg Spend & Units/Txn")
-        pb = (
-            df.groupby(["Basket_num","Date"])
-              .agg({"Spend":"sum","Units":"sum"})
-              .reset_index()
-        )
+        pb = df.groupby(["Basket_num", "Date"]).agg({"Spend":"sum", "Units":"sum"}).reset_index()
         pb["Month"] = pb["Date"].dt.to_period("M").dt.to_timestamp()
-        tv = pb.groupby("Month")[["Spend","Units"]].mean().reset_index()
-        fig3 = px.line(tv, x="Month", y=["Spend","Units"], labels={"value":"Avg/Txn"})
+        tv = pb.groupby("Month")[["Spend", "Units"]].mean().reset_index()
+        fig3 = px.line(tv, x="Month", y=["Spend", "Units"], labels={"value": "Avg/Txn"})
         fig3.update_layout(margin=dict(l=20,r=10,t=25,b=10), height=260, font_size=11)
         st.plotly_chart(fig3, use_container_width=True)
 
@@ -709,17 +821,16 @@ def dashboard_page():
 
     with b3:
         st.subheader("Basket Analysis – Top Pairs")
-        # find top‐5 co‐purchased product pairs
         pair_counts = Counter()
         for _, sub in df.groupby("Basket_num"):
             items = sub["Product_num"].unique()
             for a, b in combinations(sorted(items), 2):
                 pair_counts[(a, b)] += 1
         top_pairs = pair_counts.most_common(5)
-        tp_df = pd.DataFrame(top_pairs, columns=["Pair","Count"])
+        tp_df = pd.DataFrame(top_pairs, columns=["Pair", "Count"])
         tp_df["Product A"] = tp_df["Pair"].apply(lambda x: x[0])
         tp_df["Product B"] = tp_df["Pair"].apply(lambda x: x[1])
-        st.table(tp_df[["Product A","Product B","Count"]])
+        st.table(tp_df[["Product A", "Product B", "Count"]])
 
     st.divider()
 
