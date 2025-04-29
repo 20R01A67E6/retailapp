@@ -602,7 +602,7 @@ def dashboard_page():
     # 1️⃣ Fetch data
     try:
         conn = get_connection()
-        df   = pd.read_sql("SELECT * FROM dbo.transactions", conn)
+        df   = pd.read_sql("SELECT 3000 FROM dbo.transactions", conn)
         conn.close()
     except Exception as e:
         st.error(f"Connection error: {e}")
@@ -734,7 +734,7 @@ def ml_models_page():
     try:
         conn = get_connection()
         df   = pd.read_sql(
-            "SELECT Units, Week_num, Year, Spend FROM dbo.transactions", 
+            "SELECT TOP 5000 Units, Week_num, Year, Spend FROM dbo.transactions", 
             conn
         )
         conn.close()
