@@ -733,7 +733,7 @@ def dashboard_page():
     # 1️⃣ Fetch data
     try:
         conn = get_connection()
-        df   = pd.read_sql("SELECT TOP 5000 * FROM dbo.transactions", conn)
+        df   = pd.read_sql("SELECT TOP 20000 * FROM dbo.transactions", conn)
         conn.close()
     except Exception as e:
         st.error(f"Connection error: {e}")
